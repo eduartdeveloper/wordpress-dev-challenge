@@ -1,0 +1,18 @@
+{
+    "name": "admin/link-check-master",
+    "autoload": {
+        "psr-4": {
+            "Admin\\LinkCheckMaster\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "eduartdeveloper",
+            "email": "jeduardeveloper@gmail.com"
+        }
+    ],
+    "require": {
+        "cron/cron": "^1.8",
+        "mtdowling/cron-expression": "^1.2"
+    }
+}

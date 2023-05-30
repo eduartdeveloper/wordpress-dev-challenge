@@ -109,6 +109,7 @@ if ( ! class_exists( 'Link_Check_Master' ) ) {
 			define( 'LINK_CHECK_MASTER_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 			define( 'LINK_CHECK_MASTER_VERSION', $this->version );
 			define( 'LINK_CHECK_MASTER_PATH', $this->plugin_path() );
+			define( 'LINK_CHECK_MASTER_DIR_URL', plugin_dir_url(__FILE__) );
 		}
 
 		/**

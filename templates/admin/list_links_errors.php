@@ -1,144 +1,119 @@
 <?php
+require_once LINK_CHECK_MASTER_PATH . "/includes/admin/Table.php";
 
-require_once LINK_CHECK_MASTER_PATH."/includes/admin/Table.php";
 class Links_Errors extends WP_List_Errors {
-    public $errors = array(
-        array(
-            'URL' => 'https://example.com/page1',
-            'status' => '404',
-            'origin' => 'https://example.com',
-        ),
-        array(
-            'URL' => 'https://example.com/page2',
-            'status' => '500',
-            'origin' => 'https://example.com',
-        ),
-    );
+    public function prepare_items() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'link_check_master';
 
-    public function get_columns(){
-        $columns = array (
+        $columns = $this->get_columns();
+        $hidden = array();
+        $sortable = $this->get_sortable_columns();
+
+        $this->_column_headers = array($columns, $hidden, $sortable);
+
+        // Obtener los registros de la tabla
+        $orderby = isset($_REQUEST['orderby']) ? sanitize_key($_REQUEST['orderby']) : 'URL';
+        $order = isset($_REQUEST['order']) && in_array($_REQUEST['order'], array('asc', 'desc')) ? $_REQUEST['order'] : 'asc';
+
+        $search = isset($_REQUEST['s']) ? sanitize_text_field($_REQUEST['s']) : '';
+        $where = $search ? "WHERE URL LIKE '%$search%'" : '';
+
+        $results = $wpdb->get_results("SELECT URL, status_error, origin, id_post FROM $table_name $where ORDER BY $orderby $order");
+
+        // Paginación
+        $current_page = $this->get_pagenum();
+        $per_page = 20;
+        $total_items = count($results);
+
+        // Configurar los datos de la paginación
+        $this->set_pagination_args(array(
+            'total_items' => $total_items,
+            'per_page' => $per_page,
+        ));
+
+        // Obtener los elementos a mostrar en la página actual
+        $this->items = array_slice($results, ($current_page - 1) * $per_page, $per_page);
+    }
+
+    public function get_columns() {
+        $columns = array(
             'URL' => 'URL',
-            'status' => 'Status',
-            'origin' => 'Origin',
-        ); 
-    
-        return $columns; 
-    }
-    
-    public function prepare_items(){
-        $columns = $this->get_columns(); 
-        $this->_column_headers = array( $columns ); 
-        $this->items = $this->errors;
+            'status_error' => 'Status',
+            'origin' => 'Origin (link name)',
+        );
+
+        return $columns;
     }
 
-    public function column_default( $item, $column_name ){
-        switch( $column_name ) { 
+    public function get_sortable_columns() {
+        $sortable_columns = array(
+            'URL' => array('URL', false),
+            'status_error' => array('status_error', false),
+            'origin' => array('origin', false),
+        );
+
+        return $sortable_columns;
+    }
+
+    public function column_default($item, $column_name) {
+        switch ($column_name) {
             case 'URL':
-            case 'status':
-            return  'cy';
-          default:
-            return  'no';
+            case 'status_error':
+                return $item->$column_name;
+            case 'origin':
+                $linkedit = get_edit_post_link($item->id_post);
+                return "Edit: <a href='{$linkedit}' target='_blank'>{$item->$column_name}</a>";
+            default:
+                return '';
         }
     }
 
-
+    public function no_items() {
+        echo 'No se encontraron elementos.';
+    }
 }
 
-
-
-
-function list_links_errors(){
+function list_links_errors() {
     ?>
     <div class="wrap">
         <h1 class="wp-heading-inline">Links con errores</h1>
         <br><br>
-            <!-- fecha. nombre, estado btn -->
-            <?php 
-                $Links_errors = new Links_Errors();
-                $Links_errors->prepare_items();
-                $Links_errors->display();
-            ?>
-            <p>si</p>
-            <?php
-                function validate_links_in_post_content($post_id) {
-                    // Obtener el contenido del post
-                    $post_content = get_post_field('post_content', $post_id);
-                    
-                    // Encontrar todos los enlaces en el contenido del post
-                    preg_match_all('/<a\s[^>]*href=["\'](.*?)["\'][^>]*>(.*?)<\/a>/', $post_content, $matches);
-                    
-                    // Array para almacenar los enlaces con errores
-                    $error_links = array();
-                    
-                    // Recorrer los enlaces encontrados
-                    $count = 0;
-                    foreach ($matches[1] as $link) {
-                        // Validar el enlace
-                        
-                        // Enlace inseguro
-                        if (strpos($link, 'http://') === 0) {
-                            $error_links[] = array(
-                                'link' => $link,
-                                'text' => $matches[2][$count],
-                                'error' => 'Enlace inseguro'
-                            );
-                        }
-                        
-                        // Protocolo no especificado
-                        if (strpos($link, '://') === false || strpos($link, '//') > strpos($link, '/')) {
-                            $error_links[] = array(
-                                'link' => $link,
-                                'text' => $matches[2][$count],
-                                'error' => 'Protocolo no especificado'
-                            );
-                        }
-                        // Validar si solo se proporcionó una ruta relativa a partir del dominio
-                        $parsed_link = parse_url($link);
-                        if (isset($parsed_link['host']) && !isset($parsed_link['path'])) {
-                            $error_links[] = array(
-                                'link' => $link,
-                                'text' => $matches[2][$count],
-                                'error' => 'Protocolo no especificado'
-                            );
-                        }
-                        
-                        // Enlace malformado
-                        $url_parts = parse_url($link);
-                        if (!$url_parts || !isset($url_parts['scheme']) || !isset($url_parts['host'])) {
-                            $error_links[] = array(
-                                'link' => $link,
-                                'text' => $matches[2][$count],
-                                'error' => 'Enlace malformado'
-                            );
-                        }
-                        // Enlace malformado
-                        if (strpos($link, '://') === false && strpos($link, '//') !== 0 && strpos($link, '/') !== 0) {
-                            $error_links[] = array(
-                                'link' => $link,
-                                'text' => $matches[2][$count],
-                                'error' => 'Enlace malformado'
-                            );
-                        }
-                        $count++;
-                    }
-                    
-                    // Imprimir los enlaces con errores
-                    if (!empty($error_links)) {
-                        echo '<h2>Enlaces con errores:</h2>';
-                        echo '<ul>';
-                        foreach ($error_links as $error_link) {
-                            echo '<li>Enlace: ' . $error_link['link'] . ' - Error: ' . $error_link['error'] . ' - Nombre: ' . $error_link['text'] . '</li>';
-                        }
-                        echo '</ul>';
-                    } else {
-                        echo '<p>No se encontraron enlaces con errores.</p>';
-                    }
-                }
-                
-                // Llamar a la función pasando el ID del post deseado (en este caso, 81)
-                validate_links_in_post_content(54);
-                
-            ?>
+        <form method="get">
+            <input type="hidden" name="page" value="<?php echo $_REQUEST['page']; ?>">
+            <label for="link-search-input">Buscar por URL:</label>
+            <input type="search" id="link-search-input" name="s" value="<?php echo isset($_REQUEST['s']) ? esc_attr($_REQUEST['s']) : ''; ?>">
+            <input type="submit" class="button" value="Buscar">
+        </form>
+        <br>
+        <div style="float: right;">
+            <a href="#" class="button" onclick="reloadPageWithValidator()">Hacer análisis Forzoso</a>
+        </div>
+        
+        <?php
+        $Links_errors = new Links_Errors();
+        $Links_errors->prepare_items();
+        $Links_errors->display();
+        ?>
+        <?php require_once LINK_CHECK_MASTER_PATH . "/includes/admin/validatorForce.php"; ?>
     </div>
+    <?php
+        if(isset($_GET['validator'])){
+            if($_GET['validator'] == 'force'){
+                force();
+            }
+        }
+    ?>
+    
+    <script>
+        function reloadPageWithValidator() {
+            alert("Be patient, this will take a while!");
+            var currentUrl = window.location.href;
+            var url = new URL(currentUrl);
+            url.searchParams.set('validator', 'force');
+            var newUrl = url.href;
+            window.location.href = newUrl;
+        }
+    </script>
     <?php
 }
