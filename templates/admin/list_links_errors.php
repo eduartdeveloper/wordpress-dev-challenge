@@ -1,7 +1,16 @@
 <?php
+/**
+ * Links Errors
+ *
+ * This class extends the WP_List_Errors class and provides functionality
+ * for displaying a list of links with errors in WordPress admin area.
+ */
 require_once LINK_CHECK_MASTER_PATH . "/includes/admin/Table.php";
 
 class Links_Errors extends WP_List_Errors {
+    /**
+     * Prepare the items to be displayed in the list.
+     */
     public function prepare_items() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'link_check_master';
@@ -12,7 +21,7 @@ class Links_Errors extends WP_List_Errors {
 
         $this->_column_headers = array($columns, $hidden, $sortable);
 
-        // Obtener los registros de la tabla
+        // Retrieve records from the table
         $orderby = isset($_REQUEST['orderby']) ? sanitize_key($_REQUEST['orderby']) : 'URL';
         $order = isset($_REQUEST['order']) && in_array($_REQUEST['order'], array('asc', 'desc')) ? $_REQUEST['order'] : 'asc';
 
@@ -21,21 +30,26 @@ class Links_Errors extends WP_List_Errors {
 
         $results = $wpdb->get_results("SELECT URL, status_error, origin, id_post FROM $table_name $where ORDER BY $orderby $order");
 
-        // Paginación
+        // Pagination
         $current_page = $this->get_pagenum();
         $per_page = 20;
         $total_items = count($results);
 
-        // Configurar los datos de la paginación
+         // Set pagination data
         $this->set_pagination_args(array(
             'total_items' => $total_items,
             'per_page' => $per_page,
         ));
 
-        // Obtener los elementos a mostrar en la página actual
+        // Get the items to display on the current page
         $this->items = array_slice($results, ($current_page - 1) * $per_page, $per_page);
     }
 
+    /**
+     * Get the columns for the list table.
+     *
+     * @return array An associative array of columns.
+     */
     public function get_columns() {
         $columns = array(
             'URL' => 'URL',
@@ -46,6 +60,11 @@ class Links_Errors extends WP_List_Errors {
         return $columns;
     }
 
+    /**
+     * Get the sortable columns for the list table.
+     *
+     * @return array An associative array of sortable columns.
+     */
     public function get_sortable_columns() {
         $sortable_columns = array(
             'URL' => array('URL', false),
@@ -56,6 +75,13 @@ class Links_Errors extends WP_List_Errors {
         return $sortable_columns;
     }
 
+    /**
+     * Render the default column.
+     *
+     * @param object $item        The current item.
+     * @param string $column_name The name of the column.
+     * @return string             The HTML markup for the column.
+     */
     public function column_default($item, $column_name) {
         switch ($column_name) {
             case 'URL':
@@ -68,12 +94,18 @@ class Links_Errors extends WP_List_Errors {
                 return '';
         }
     }
-
+    
+    /**
+     * Render the message when no items are found.
+     */
     public function no_items() {
         echo 'No se encontraron elementos.';
     }
 }
 
+/**
+ * Display the list of links with errors.
+ */
 function list_links_errors() {
     ?>
     <div class="wrap">

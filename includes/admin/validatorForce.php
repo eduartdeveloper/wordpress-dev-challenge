@@ -1,82 +1,92 @@
 <?php
+/**
+ * Force the link validation in post content
+ *
+ * This code verifies the links in the content of a post and performs various validations.
+ */
 
+/**
+ * Validates links in the content of a post.
+ *
+ * @param int $post_id The ID of the post to validate.
+ */
 function validate_links_in_post_content($post_id) {
-    // Obtener el contenido del post
+    // Get the post content
     $post_content = get_post_field('post_content', $post_id);
     
-    // Encontrar todos los enlaces en el contenido del post
+    // Get the post content
     preg_match_all('/<a\s[^>]*href=["\'](.*?)["\'][^>]*>(.*?)<\/a>/', $post_content, $matches);
     
-    // Array para almacenar los enlaces con errores
+    // Array to store links with errors
     $error_links = array();
     
-    // Recorrer los enlaces encontrados
+    // Iterate over the found links
     $count = 0;
     foreach ($matches[1] as $link) {
-        // Validar el enlace
+        // Validate the link
         
-        // Enlace inseguro
+        // Insecure link
         if (strpos($link, 'http://') === 0) {
             $error_links[] = array(
                 'link' => $link,
                 'text' => $matches[2][$count],
-                'error' => 'Enlace inseguro'
+                'error' => 'Insecure link'
             );
         }
         
-        // Protocolo no especificado
+        // Unspecified protocol
         if (strpos($link, '://') === false || strpos($link, '//') > strpos($link, '/')) {
             $error_links[] = array(
                 'link' => $link,
                 'text' => $matches[2][$count],
-                'error' => 'Protocolo no especificado'
+                'error' => 'Unspecified protocol'
             );
         }
-        // Validar si solo se proporcionó una ruta relativa a partir del dominio
+        // Validate if only a relative path is provided starting from the domain
         $parsed_link = parse_url($link);
         if (isset($parsed_link['host']) && !isset($parsed_link['path'])) {
             $error_links[] = array(
                 'link' => $link,
                 'text' => $matches[2][$count],
-                'error' => 'Protocolo no especificado'
+                'error' => 'Unspecified protocol'
             );
         }
         
-        // Enlace malformado
+        // Malformed link
         $url_parts = parse_url($link);
         if (!$url_parts || !isset($url_parts['scheme']) || !isset($url_parts['host'])) {
             $error_links[] = array(
                 'link' => $link,
                 'text' => $matches[2][$count],
-                'error' => 'Enlace malformado'
+                'error' => 'Malformed link'
             );
         }
-        // Enlace malformado
+        // Malformed link
         if (strpos($link, '://') === false && strpos($link, '//') !== 0 && strpos($link, '/') !== 0) {
             $error_links[] = array(
                 'link' => $link,
                 'text' => $matches[2][$count],
-                'error' => 'Enlace malformado'
+                'error' => 'Malformed link'
             );
         }
 
-        // Realizar la solicitud HEAD
+        // Perform HEAD request
         $response = wp_remote_head($link);
         
-        // Verificar el código de respuesta
+        // Check response code
         $response_code = wp_remote_retrieve_response_code($response);
         if ($response_code >= 400) {
             $error_links[] = array(
                 'link' => $link,
                 'text' => $matches[2][$count],
-                'error' => 'Error de respuesta HTTP: ' . $response_code
+                'error' => 'HTTP response error: ' . $response_code
             );
         }
 
         $count++;
     }
     
-    // Insertar en la base de datos
+    // Insert into the database
     global $wpdb;
     $table_name = $wpdb->prefix . 'link_check_master';
     
@@ -90,7 +100,7 @@ function validate_links_in_post_content($post_id) {
             );
             
             if (empty($existing_record)) {
-                // No existe un registro con la misma URL, insertar uno nuevo
+                // No record with the same URL exists, insert a new one
                 $data = array(
                     'URL' => $error_link['link'],
                     'status_error' => $error_link['error'],
@@ -101,7 +111,7 @@ function validate_links_in_post_content($post_id) {
                 
                 $wpdb->insert($table_name, $data);
             } else {
-                // Actualizar el campo latest_revision en el registro existente
+                // Update the 'latest_revision' field in the existing record
                 $wpdb->update(
                     $table_name,
                     array('latest_revision' => date('Y-m-d')),
@@ -118,11 +128,14 @@ function validate_links_in_post_content($post_id) {
      
 }
 
+/**
+ * Forces the link validation process for all posts.
+ */
 function force(){
 
     $args = array(
-        'post_type' => 'post',  // Tipo de post a recuperar
-        'posts_per_page' => -1, // Número de posts por página (-1 para obtener todos)
+        'post_type' => 'post',  // Post type to retrieve
+        'posts_per_page' => -1, // Number of posts per page (-1 to get all)
     );
     
     $posts = get_posts($args);
@@ -136,7 +149,7 @@ function force(){
     global $wpdb;
     $table_name = $wpdb->prefix . 'link_check_master';
 
-    // Vaciar la tabla
+    // Empty the table
     $wpdb->query("TRUNCATE TABLE $table_name");
     
     foreach ($posts as $post) {
