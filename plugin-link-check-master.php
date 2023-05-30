@@ -6,7 +6,7 @@
  *
  * This file is responsible for starting the plugin using the main plugin class file.
  *
- * @since 0.0.1
+ * @since 1.0.0
  * @package Link_Check_Master
  *
  * @wordpress-plugin
@@ -72,6 +72,7 @@ if ( ! class_exists( 'Link_Check_Master' ) ) {
 			$this->define_constants();
 			$this->includes();
 			$this->define_actions();
+			$this->define_menus();
 		}
 
 		public function load_plugin_textdomain() {
@@ -85,6 +86,9 @@ if ( ! class_exists( 'Link_Check_Master' ) ) {
             
 			// Load custom functions and hooks
 			require_once __DIR__ . '/includes/includes.php';
+
+
+			require_once __DIR__ . '/templates/admin/list_links_errors.php';
 		}
 
 		/**
@@ -118,7 +122,12 @@ if ( ! class_exists( 'Link_Check_Master' ) ) {
 		 * Define Link_Check_Master menus
 		 */
 		public function define_menus() {
-            //
+            
+			function LCK__register_menu(){
+				add_menu_page('Errores de links','Errores de links', 'manage_options', 'link-check-master' , 'list_links_errors', 'dashicons-editor-unlink', 2);
+			}
+			add_action('admin_menu', 'LCK__register_menu');
+		
 		}
 	}
 
